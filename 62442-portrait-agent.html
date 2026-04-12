@@ -71,88 +71,6 @@
       margin-bottom: 28px;
     }
 
-    /* Key panel */
-    .key-panel {
-      background: rgba(245,240,232,0.05);
-      border: 1px solid rgba(245,240,232,0.09);
-      border-radius: 6px;
-      padding: 16px;
-      margin-bottom: 28px;
-    }
-
-    .key-label {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 9.5px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--solar);
-      margin-bottom: 10px;
-    }
-
-    .key-label-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--solar);
-      flex-shrink: 0;
-    }
-
-    .key-input {
-      width: 100%;
-      background: rgba(245,240,232,0.07);
-      border: 1px solid rgba(245,240,232,0.13);
-      border-radius: 4px;
-      color: var(--bg);
-      font-family: var(--sans);
-      font-size: 12px;
-      font-weight: 300;
-      padding: 10px 12px;
-      letter-spacing: 0.05em;
-      outline: none;
-      transition: border-color 0.2s;
-      -webkit-text-security: disc;
-    }
-
-    .key-input:focus { border-color: var(--wonder); }
-    .key-input::placeholder {
-      color: rgba(245,240,232,0.2);
-      font-size: 11px;
-      letter-spacing: 0.04em;
-    }
-
-    .key-note {
-      font-size: 9.5px;
-      color: rgba(245,240,232,0.28);
-      line-height: 1.55;
-      margin-top: 8px;
-    }
-
-    .key-status {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      margin-top: 10px;
-    }
-
-    .key-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: rgba(245,240,232,0.15);
-      flex-shrink: 0;
-      transition: background 0.3s;
-    }
-    .key-dot.ready   { background: var(--ahha); }
-    .key-dot.invalid { background: var(--solar); }
-
-    .key-status-text {
-      font-size: 10px;
-      color: rgba(245,240,232,0.38);
-      letter-spacing: 0.05em;
-    }
-
     /* Seats */
     .seats-label {
       font-size: 9.5px;
@@ -596,27 +514,6 @@
   <div class="sb-title">62442<br>Portrait<br>Agent</div>
   <div class="sb-sub">Ten rooms · Ten seats</div>
 
-  <div class="key-panel">
-    <div class="key-label">
-      <span class="key-label-dot"></span>
-      Anthropic API Key
-    </div>
-    <input
-      type="password"
-      id="apiKeyInput"
-      class="key-input"
-      placeholder="sk-ant-api03-…"
-      autocomplete="off"
-      autocorrect="off"
-      spellcheck="false"
-    />
-    <div class="key-note">Typed here each session only.<br>Never stored. Never leaves this browser.</div>
-    <div class="key-status">
-      <div class="key-dot" id="keyDot"></div>
-      <span class="key-status-text" id="keyStatusText">No key entered</span>
-    </div>
-  </div>
-
   <div class="seats-label">Founding seats</div>
   <ul class="seat-list" id="seatList"></ul>
 
@@ -642,7 +539,7 @@
     <div class="empty" id="emptyState">
       <div class="empty-glyph">✦</div>
       <div class="empty-title">Select a founding seat</div>
-      <div class="empty-body">Each room holds a complete DustOS intelligence portrait built from public signal only. Enter your API key, choose a seat, and the agent constructs the portrait and five-layer verification model.</div>
+      <div class="empty-body">Each room holds a complete DustOS intelligence portrait built from public signal only. Choose a seat and the agent constructs the portrait and five-layer verification model.</div>
     </div>
   </div>
 </main>
@@ -685,25 +582,6 @@ function renderSeats() {
   });
 }
 
-/* ── API KEY STATUS ────────────────────────────────── */
-document.getElementById('apiKeyInput').addEventListener('input', e => {
-  const v   = e.target.value.trim();
-  const dot = document.getElementById('keyDot');
-  const txt = document.getElementById('keyStatusText');
-  if (v.startsWith('sk-ant-') && v.length > 30) {
-    dot.className = 'key-dot ready';
-    txt.textContent = 'Key ready';
-  } else if (v.length > 0) {
-    dot.className = 'key-dot invalid';
-    txt.textContent = 'Invalid format';
-  } else {
-    dot.className = 'key-dot';
-    txt.textContent = 'No key entered';
-  }
-});
-
-const apiKey = () => document.getElementById('apiKeyInput').value.trim();
-
 /* ── SELECT SEAT ───────────────────────────────────── */
 function selectSeat(num) {
   activeSeat = num;
@@ -733,16 +611,6 @@ function renderReady(seat) {
 
 /* ── GENERATE ──────────────────────────────────────── */
 async function generate(num) {
-  const key = apiKey();
-  if (!key || !key.startsWith('sk-ant-')) {
-    document.getElementById('mainBody').insertAdjacentHTML('beforeend', `
-      <div class="error-box">
-        <div class="error-label">Cannot proceed</div>
-        <div class="error-msg">Enter a valid Anthropic API key to build this portrait.</div>
-      </div>`);
-    return;
-  }
-
   const seat = SEATS.find(s => s.num === num);
 
   document.getElementById('mainBody').innerHTML = `
@@ -810,13 +678,10 @@ RETURN ONLY a valid JSON object. No preamble. No markdown. No backticks. Pure JS
   const USER = `Build the complete 62442 portrait for Seat ${num} — ${seat.name}. ${seat.desc}`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://dustos-proxy.thewattleroad.workers.dev', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true',
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
