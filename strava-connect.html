@@ -901,6 +901,17 @@ async function buildEnvelope(activities, athlete) {
     },
     anomaly_periods: anomalies,
     null_fields:     nullFields,
+    data_quality_notes: [
+      {
+        type:        'hardware_gap',
+        source:      'garmin_band_failure',
+        window:      { start: '2026-02-01', end: '2026-04-11' },
+        description: 'Garmin band broken and sync inconsistent approximately February 2026 through April 11 2026. Device operational from April 12 2026. Gap periods in this window may be hardware-attributed rather than behavioural.',
+        confirmed_by: 'subject_dave_drury',
+        affected_fields: ['training_gap_periods','training_sessions_count','training_sessions_delta','consistency_by_type'],
+        synthesis_instruction: 'Cross-reference gap periods 2026-02-01 to 2026-04-11 against Calendar and Gmail anomaly periods before attributing to behavioural cause. Hardware attribution takes precedence unless two other domains show concurrent anomaly.',
+      }
+    ],
   };
 }
 
