@@ -446,17 +446,32 @@ async function fetchTopItems(workerUrl, type, limit=50) {
   return results;
 }
 
-// Batch audio features (max 100 per call)
-async function fetchAudioFeatures(workerUrl, trackIds) {
-  const features = [];
-  for (let i = 0; i < trackIds.length; i += 100) {
-    const batch = trackIds.slice(i, i+100);
+// Audio features deprecated for new Spotify apps (Nov 2024).
+// Using track popularity distribution as proxy signal.
+async function fetchTrackDetails(workerUrl, trackIds) {
+  const details = [];
+  for (let i = 0; i < trackIds.length; i += 50) {
+    const batch = trackIds.slice(i, i+50);
     try {
-      const data = await spotifyGet(workerUrl, '/audio-features', { ids: batch.join(',') });
-      if (data.audio_features) features.push(...data.audio_features.filter(Boolean));
+      const data = await spotifyGet(workerUrl, '/tracks', { ids: batch.join(',') });
+      if (data.tracks) details.push(...data.tracks.filter(Boolean));
     } catch { /* skip batch */ }
   }
-  return features;
+  return details;
+}
+
+// Fetch artist details to get genre data (genres often empty in batch top-artists response)
+async function fetchArtistGenres(workerUrl, artists) {
+  const ids = [...new Set(artists.map(a=>a.id).filter(Boolean))].slice(0,50);
+  if (!ids.length) return artists;
+  try {
+    const data = await spotifyGet(workerUrl, '/artists', { ids: ids.join(',') });
+    const genreMap = {};
+    if (data.artists) {
+      for (const a of data.artists) { if (a) genreMap[a.id] = a.genres || []; }
+    }
+    return artists.map(a => ({ ...a, genres: genreMap[a.id] || a.genres || [] }));
+  } catch { return artists; }
 }
 
 // ── SIGNAL SCHEMA MAPPING ─────────────────────────────
@@ -479,26 +494,19 @@ function buildGenreProfile(topArtists) {
   return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([g,c])=>({genre:g,count:c}));
 }
 
-function mapToSchema(profile, recentTracks, topTracks, topArtists, audioFeatures, pullDays) {
+function mapToSchema(profile, recentTracks, topTracks, topArtists, trackDetails, pullDays) {
   const now = new Date();
 
-  // Audio feature aggregates
-  const valences  = audioFeatures.map(f=>f.valence).filter(v=>v!=null);
-  const energies  = audioFeatures.map(f=>f.energy).filter(v=>v!=null);
-  const tempos    = audioFeatures.map(f=>f.tempo).filter(v=>v!=null);
-  const dances    = audioFeatures.map(f=>f.danceability).filter(v=>v!=null);
-  const acoustics = audioFeatures.map(f=>f.acousticness).filter(v=>v!=null);
+  // Track popularity distribution (proxy for audio features — deprecated Nov 2024)
+  const popularities = trackDetails.map(t=>t.popularity).filter(v=>v!=null);
+  const popMean      = mean(popularities);
+  const popHigh      = popularities.filter(p=>p>=70).length;
+  const popLow       = popularities.filter(p=>p<40).length;
+  const popRatioHigh = popularities.length ? round2(popHigh/popularities.length) : null;
 
-  const meanVal  = mean(valences);
-  const meanEn   = mean(energies);
-  const meanTmp  = mean(tempos);
-  const meanDan  = mean(dances);
-  const meanAco  = mean(acoustics);
-
-  // High vs low energy ratio
-  const highEnergy = energies.filter(e=>e>=0.65).length;
-  const lowEnergy  = energies.filter(e=>e< 0.40).length;
-  const energyRatio = energies.length ? round2(highEnergy/energies.length) : null;
+  // Null audio feature values — endpoint not available for new apps
+  const meanVal = null, meanEn = null, meanTmp = null, meanDan = null, meanAco = null;
+  const energyRatio = null;
 
   // Genre profile
   const genreProfile = buildGenreProfile(topArtists);
@@ -523,7 +531,7 @@ function mapToSchema(profile, recentTracks, topTracks, topArtists, audioFeatures
   }
 
   // Signal confidence — DCS formula
-  const hasFeatures    = audioFeatures.length > 10 ? 1.0 : audioFeatures.length > 5 ? 0.75 : 0.5;
+  const hasFeatures    = trackDetails.length > 10 ? 1.0 : trackDetails.length > 5 ? 0.75 : 0.5;
   const hasTracks      = topTracks.long_term?.length > 20 ? 1.0 : 0.6;
   const hasRecent      = recentCount >= 40 ? 1.0 : recentCount >= 20 ? 0.75 : 0.5;
   const sourceRel      = 0.88; // Spotify data is complete and reliable
@@ -542,15 +550,17 @@ function mapToSchema(profile, recentTracks, topTracks, topArtists, audioFeatures
 
     // ── AUDIO PROFILE ──
     audio_profile: {
-      valence_mean:        round2(meanVal),
-      energy_mean:         round2(meanEn),
-      tempo_mean:          meanTmp ? Math.round(meanTmp) : null,
-      danceability_mean:   round2(meanDan),
-      acousticness_mean:   round2(meanAco),
-      energy_ratio_high:   energyRatio,
+      valence_mean:        null,
+      energy_mean:         null,
+      tempo_mean:          null,
+      danceability_mean:   null,
+      acousticness_mean:   null,
+      energy_ratio_high:   null,
       mood_classification: moodClass,
-      mood_note:           'valence = positivity 0–1. energy = intensity 0–1. Classification: high_energy_positive / calm_positive / high_energy_tense / low_energy_negative / neutral.',
-      tracks_analysed:     audioFeatures.length,
+      audio_features_note: 'Spotify audio features endpoint deprecated for new apps Nov 2024. Using popularity proxy.',
+      popularity_mean:     round2(popMean),
+      popularity_ratio_high: popRatioHigh,
+      tracks_analysed:     trackDetails.length,
     },
 
     // ── GENRE PROFILE ──
@@ -684,28 +694,39 @@ async function runIngestion(token, workerUrl, pullDays) {
   setStep('top-artists', 'active');
   let topArtists = { short_term:[], medium_term:[], long_term:[] };
   try {
-    topArtists = await fetchTopItems(workerUrl, 'artists', 50);
+    const raw = await fetchTopItems(workerUrl, 'artists', 50);
+    // Enrich all artists with genre data via batch /artists endpoint
+    const allArtists = [...(raw.short_term||[]), ...(raw.medium_term||[]), ...(raw.long_term||[])];
+    const enriched   = await fetchArtistGenres(workerUrl, allArtists);
+    // Re-map enriched artists back to time ranges by index
+    const sLen = (raw.short_term||[]).length;
+    const mLen = (raw.medium_term||[]).length;
+    topArtists = {
+      short_term:  enriched.slice(0, sLen),
+      medium_term: enriched.slice(sLen, sLen+mLen),
+      long_term:   enriched.slice(sLen+mLen),
+    };
     const total = Object.values(topArtists).reduce((s,a)=>s+a.length,0);
     setStep('top-artists', 'done', `${total} artists`);
   } catch(e) { setStep('top-artists', 'error', 'failed'); }
 
   setStep('features', 'active');
-  let audioFeatures = [];
+  let trackDetails = [];
   try {
     const allTrackIds = [
       ...recentTracks.map(t=>t.track?.id).filter(Boolean),
       ...(topTracks.short_term||[]).map(t=>t.id).filter(Boolean),
       ...(topTracks.medium_term||[]).map(t=>t.id).filter(Boolean),
     ];
-    const uniqueIds = [...new Set(allTrackIds)].slice(0, 200);
-    audioFeatures = await fetchAudioFeatures(workerUrl, uniqueIds);
-    setStep('features', 'done', `${audioFeatures.length} tracks`);
+    const uniqueIds = [...new Set(allTrackIds)].slice(0, 150);
+    trackDetails = await fetchTrackDetails(workerUrl, uniqueIds);
+    setStep('features', 'done', `${trackDetails.length} tracks (popularity proxy)`);
   } catch(e) { setStep('features', 'error', 'failed'); }
 
   setStep('schema', 'active');
   let envelope;
   try {
-    envelope = mapToSchema(profile, recentTracks, topTracks, topArtists, audioFeatures, pullDays);
+    envelope = mapToSchema(profile, recentTracks, topTracks, topArtists, trackDetails, pullDays);
     setStep('schema', 'done', `DCS ${Math.round(envelope.signal_confidence*100)}%`);
   } catch(e) {
     setStep('schema', 'error', 'failed');
