@@ -796,20 +796,36 @@ async function whoopGet(workerUrl, path, params = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `${workerUrl}/whoop/api${path}${qs ? '?' + qs : ''}`;
   const resp = await fetch(url, { headers: { 'X-Whoop-Token': accessToken } });
-  if (!resp.ok) throw new Error(`API error ${resp.status} on ${path}`);
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`API error ${resp.status} on ${path}: ${errText.slice(0,200)}`);
+  }
   return resp.json();
 }
 
 // Paginated pull — follows next_token until exhausted or limit reached
+// Whoop API: pagination token is 'nextToken' in query, 'next_token' in response
 async function whoopGetAll(workerUrl, path, baseParams = {}, maxRecords = 2000) {
   const records = [];
   let nextToken = null;
+  let page = 0;
   do {
-    const params = { ...baseParams, limit: 25 };
+    page++;
+    const params = { ...baseParams, limit: 50 };
     if (nextToken) params.nextToken = nextToken;
-    const data = await whoopGet(workerUrl, path, params);
-    if (data.records) records.push(...data.records);
-    nextToken = data.next_token || null;
+    let data;
+    try {
+      data = await whoopGet(workerUrl, path, params);
+    } catch(e) {
+      console.warn(`whoopGetAll page ${page} failed:`, e.message);
+      break;
+    }
+    // Handle both array and {records:[]} response shapes
+    const items = Array.isArray(data) ? data : (data.records || []);
+    records.push(...items);
+    // Whoop uses next_token in response body
+    nextToken = data.next_token || data.nextToken || null;
+    if (page > 100) break; // hard safety cap
   } while (nextToken && records.length < maxRecords);
   return records;
 }
@@ -1141,43 +1157,49 @@ async function runIngestion(token, workerUrl, pullDays) {
   }
 
   // Step: cycles
+  // Whoop date params: start/end must be ISO8601 with timezone
+  // Pull without date filter first to get all available, then filter client-side
   setStep('cycles', 'active');
   let cycles = [];
   try {
-    cycles = await whoopGetAll(workerUrl, '/cycle', { start: startISO, end: endISO });
+    cycles = await whoopGetAll(workerUrl, '/cycle', { limit: 50 });
+    // Client-side filter to pull window
+    cycles = cycles.filter(c => c.start && c.start >= startISO);
     setStep('cycles', 'done', `${cycles.length} cycles`);
   } catch (e) {
-    setStep('cycles', 'error', 'failed');
+    setStep('cycles', 'error', `failed: ${e.message}`);
   }
 
-  // Step: recovery
+  // Step: recovery — keyed to cycle_id, pull all
   setStep('recovery', 'active');
   let recoveries = [];
   try {
-    recoveries = await whoopGetAll(workerUrl, '/recovery', { start: startISO, end: endISO });
+    recoveries = await whoopGetAll(workerUrl, '/recovery', { limit: 50 });
     setStep('recovery', 'done', `${recoveries.length} records`);
   } catch (e) {
-    setStep('recovery', 'error', 'failed');
+    setStep('recovery', 'error', `failed: ${e.message}`);
   }
 
   // Step: sleep
   setStep('sleep', 'active');
   let sleepRecords = [];
   try {
-    sleepRecords = await whoopGetAll(workerUrl, '/activity/sleep', { start: startISO, end: endISO });
+    sleepRecords = await whoopGetAll(workerUrl, '/activity/sleep', { limit: 50 });
+    sleepRecords = sleepRecords.filter(s => s.start && s.start >= startISO);
     setStep('sleep', 'done', `${sleepRecords.length} sessions`);
   } catch (e) {
-    setStep('sleep', 'error', 'failed');
+    setStep('sleep', 'error', `failed: ${e.message}`);
   }
 
   // Step: workout
   setStep('workout', 'active');
   let workouts = [];
   try {
-    workouts = await whoopGetAll(workerUrl, '/activity/workout', { start: startISO, end: endISO });
+    workouts = await whoopGetAll(workerUrl, '/activity/workout', { limit: 50 });
+    workouts = workouts.filter(w => w.start && w.start >= startISO);
     setStep('workout', 'done', `${workouts.length} sessions`);
   } catch (e) {
-    setStep('workout', 'error', 'failed');
+    setStep('workout', 'error', `failed: ${e.message}`);
   }
 
   // Step: schema mapping
