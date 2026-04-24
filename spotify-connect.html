@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DustOS — Spotify Culture Signal Connector</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:       #0a0a0b;
+    --surface:  #111114;
+    --border:   #1e1e24;
+    --dim:      #2a2a33;
+    --text:     #e8e8f0;
+    --muted:    #6b6b80;
+    --accent:   #c8ff00;
+    --spotify:  #1DB954;
+    --warn:     #ff6b35;
+    --good:     #39e07a;
+    --mono:     'Space Mono', monospace;
+    --sans:     'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-weight: 300; min-height: 100vh; }
+
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; }
+  .logo span { color: var(--accent); }
+  .connector-label {
+    font-family: var(--mono); font-size: 11px; color: var(--spotify);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    border: 1px solid rgba(29,185,84,0.25); padding: 3px 8px; border-radius: 2px;
+    background: rgba(29,185,84,0.05);
+  }
+  .build-tag { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+
+  .main { max-width: 920px; margin: 0 auto; padding: 48px 32px; }
+
+  .section-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; margin-bottom: 4px; }
+  .subtitle { font-size: 14px; color: var(--muted); font-weight: 300; margin-bottom: 48px; line-height: 1.6; }
+
+  .domain-notice {
+    background: rgba(29,185,84,0.04); border: 1px solid rgba(29,185,84,0.15);
+    border-radius: 4px; padding: 20px 24px; margin-bottom: 40px;
+  }
+  .domain-notice-title { font-family: var(--mono); font-size: 10px; color: var(--spotify); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; }
+  .domain-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 32px; }
+  .domain-row { display: flex; flex-direction: column; gap: 2px; }
+  .domain-key { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+  .domain-val { font-size: 12px; color: var(--text); }
+  .domain-val.sig { color: var(--accent); }
+
+  .worker-spec {
+    background: var(--surface); border: 1px solid rgba(200,255,0,0.15);
+    border-radius: 4px; padding: 24px; margin-bottom: 24px;
+  }
+  .worker-spec-title { font-family: var(--mono); font-size: 10px; color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 16px; }
+  .worker-spec pre {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 3px;
+    padding: 16px; font-family: var(--mono); font-size: 11px; color: var(--muted);
+    overflow-x: auto; max-height: 280px; overflow-y: auto; line-height: 1.7;
+  }
+
+  .config-block { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 28px; margin-bottom: 24px; }
+  .config-title { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 20px; }
+  .field-row { display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .field-label { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
+  .field-input {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--mono); font-size: 12px; padding: 10px 14px; border-radius: 3px;
+    width: 100%; outline: none; transition: border-color 0.15s;
+  }
+  .field-input:focus { border-color: var(--spotify); }
+  .field-note { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .field-note a { color: var(--spotify); text-decoration: none; }
+
+  .btn { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px 28px; border-radius: 3px; border: none; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-spotify { background: var(--spotify); color: #000; font-weight: 700; }
+  .btn-spotify:hover { background: #1ed760; transform: translateY(-1px); }
+  .btn-spotify:disabled { background: var(--dim); color: var(--muted); cursor: not-allowed; transform: none; }
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+
+  .status-bar { font-family: var(--mono); font-size: 11px; padding: 10px 14px; border-radius: 3px; margin-bottom: 16px; display: none; letter-spacing: 0.05em; }
+  .status-bar.show { display: block; }
+  .status-bar.info { background: rgba(29,185,84,0.08); border: 1px solid rgba(29,185,84,0.2); color: var(--spotify); }
+  .status-bar.ok   { background: rgba(57,224,122,0.08); border: 1px solid rgba(57,224,122,0.2); color: var(--good); }
+  .status-bar.err  { background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.2); color: var(--warn); }
+  .status-bar.warn { background: rgba(200,255,0,0.06); border: 1px solid rgba(200,255,0,0.2); color: var(--accent); }
+
+  .progress-block { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 28px; margin-bottom: 24px; }
+  .progress-block.show { display: block; }
+  .progress-title { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 20px; }
+  .progress-step { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 11px; }
+  .progress-step:last-child { border-bottom: none; }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex-shrink: 0; transition: all 0.2s; }
+  .step-dot.active { background: var(--spotify); box-shadow: 0 0 8px rgba(29,185,84,0.5); animation: pulse 1s infinite; }
+  .step-dot.done   { background: var(--good); }
+  .step-dot.error  { background: var(--warn); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .step-label { color: var(--muted); }
+  .step-label.active { color: var(--spotify); }
+  .step-label.done   { color: var(--good); }
+  .step-label.error  { color: var(--warn); }
+  .step-count { margin-left: auto; color: var(--dim); font-size: 10px; }
+  .step-count.done { color: var(--good); }
+
+  .envelope-block { display: none; margin-bottom: 24px; }
+  .envelope-block.show { display: block; }
+  .envelope-header {
+    background: rgba(29,185,84,0.06); border: 1px solid rgba(29,185,84,0.2);
+    border-radius: 4px 4px 0 0; padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .envelope-title { font-family: var(--mono); font-size: 11px; color: var(--spotify); letter-spacing: 0.15em; text-transform: uppercase; }
+  .envelope-confidence { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--good); }
+  .findings-grid {
+    background: var(--surface); border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 4px 4px; padding: 24px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+  .finding-card { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 16px; }
+  .finding-card-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+  .finding-card-value { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .finding-card-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .finding-card-note .ok { color: var(--good); }
+  .finding-card-note .sig { color: var(--accent); }
+
+  .culture-block {
+    background: rgba(29,185,84,0.04); border: 1px solid rgba(29,185,84,0.12);
+    border-radius: 3px; padding: 16px; margin-top: 12px; grid-column: 1 / -1;
+  }
+  .culture-block-label { font-family: var(--mono); font-size: 10px; color: var(--spotify); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 10px; }
+  .culture-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .culture-tag {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    border: 1px solid var(--border); padding: 3px 8px; border-radius: 2px;
+    background: var(--bg);
+  }
+  .culture-tag.primary { color: var(--spotify); border-color: rgba(29,185,84,0.3); background: rgba(29,185,84,0.05); }
+
+  .json-block { display: none; margin-bottom: 24px; }
+  .json-block.show { display: block; }
+  .json-header { background: var(--surface); border: 1px solid var(--border); border-radius: 4px 4px 0 0; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .json-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; }
+  .copy-btn { font-family: var(--mono); font-size: 10px; color: var(--muted); background: none; border: 1px solid var(--border); padding: 4px 10px; border-radius: 2px; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; transition: all 0.15s; }
+  .copy-btn:hover { color: var(--text); border-color: var(--dim); }
+  .copy-btn.copied { color: var(--good); border-color: rgba(57,224,122,0.3); }
+  pre { background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 4px 4px; padding: 20px; font-family: var(--mono); font-size: 11px; color: var(--muted); overflow-x: auto; max-height: 420px; overflow-y: auto; line-height: 1.7; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo"><span>DustOS</span> | Layer 2</div>
+    <div class="connector-label">Spotify · Culture Domain</div>
+  </div>
+  <div class="build-tag">build 0.1 · april 2026</div>
+</div>
+
+<div class="main">
+
+  <div class="section-label">Signal Ingestion Pipeline</div>
+  <h1>Spotify Culture Connector</h1>
+  <p class="subtitle">
+    Listening history, top artists, audio features, genre map — 190-day pull.<br>
+    Culture domain signal schema mapping. Cross-domain synthesis ready.
+  </p>
+
+  <div class="domain-notice">
+    <div class="domain-notice-title">Culture domain — signal schema targets</div>
+    <div class="domain-grid">
+      <div class="domain-row">
+        <div class="domain-key">listening_intensity</div>
+        <div class="domain-val">plays/day relative to baseline</div>
+      </div>
+      <div class="domain-row">
+        <div class="domain-key">genre_profile</div>
+        <div class="domain-val sig">top genres by play share</div>
+      </div>
+      <div class="domain-row">
+        <div class="domain-key">audio_valence</div>
+        <div class="domain-val">Spotify mood score 0–1</div>
+      </div>
+      <div class="domain-row">
+        <div class="domain-key">energy_profile</div>
+        <div class="domain-val sig">high/low energy ratio</div>
+      </div>
+      <div class="domain-row">
+        <div class="domain-key">listening_time_of_day</div>
+        <div class="domain-val">morning / workout / evening / late</div>
+      </div>
+      <div class="domain-row">
+        <div class="domain-key">discovery_rate</div>
+        <div class="domain-val sig">new artists as % of total plays</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKER ROUTES -->
+  <div class="worker-spec">
+    <div class="worker-spec-title">⚠ Cloudflare Worker — routes required before OAuth will function</div>
+    <pre>// Add to dustos-proxy.thewattleroad.workers.dev
+
+// Environment variables to add:
+// SPOTIFY_CLIENT_ID      — from developer.spotify.com
+// SPOTIFY_CLIENT_SECRET  — from developer.spotify.com
+// SPOTIFY_REDIRECT_URI   — https://theprivfew.github.io/dustos-agent/spotify-connect.html
+
+// Route 1: Token exchange (PKCE — no client secret in browser)
+if (url.pathname === '/spotify/token') {
+  const body = await request.json();
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: body.code,
+    redirect_uri: env.SPOTIFY_REDIRECT_URI,
+    client_id: env.SPOTIFY_CLIENT_ID,
+    code_verifier: body.code_verifier,
+  });
+  const resp = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  const data = await resp.json();
+  return new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN }
+  });
+}
+
+// Route 2: API proxy
+if (url.pathname.startsWith('/spotify/api/')) {
+  const spotifyPath = url.pathname.replace('/spotify/api', '');
+  const spotifyUrl = 'https://api.spotify.com/v1' + spotifyPath + url.search;
+  const token = request.headers.get('X-Spotify-Token');
+  const resp = await fetch(spotifyUrl, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const data = await resp.json();
+  return new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN }
+  });
+}</pre>
+  </div>
+
+  <!-- CONFIG -->
+  <div class="config-block">
+    <div class="config-title">01 — Connector configuration</div>
+    <div class="field-row">
+      <div class="field-label">Client ID</div>
+      <div>
+        <input class="field-input" id="clientId" type="text" placeholder="Spotify app client_id" autocomplete="off" />
+        <div class="field-note">From <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com/dashboard</a> → Create App → Client ID</div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Worker base URL</div>
+      <div>
+        <input class="field-input" id="workerUrl" type="text" value="https://dustos-proxy.thewattleroad.workers.dev" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Pull window (days)</div>
+      <div>
+        <input class="field-input" id="pullDays" type="number" value="190" min="30" max="400" />
+        <div class="field-note">190 days default. Note: Spotify recently played is capped at 50 tracks — top artists/tracks used for longer window signal.</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-spotify" onclick="initiateAuth()">Connect Spotify</button>
+    </div>
+  </div>
+
+  <div id="statusBar" class="status-bar"></div>
+
+  <!-- PROGRESS -->
+  <div class="progress-block" id="progressBlock">
+    <div class="progress-title">Signal ingestion — culture domain</div>
+    <div class="progress-step">
+      <div class="step-dot" id="dot-auth"></div>
+      <div class="step-label" id="label-auth">OAuth token exchange</div>
+      <div class="step-count" id="count-auth">—</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-dot" id="dot-profile"></div>
+      <div class="step-label" id="label-profile">User profile</div>
+      <div class="step-count" id="count-profile">—</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-dot" id="dot-recent"></div>
+      <div class="step-label" id="label-recent">Recently played (50 track cap)</div>
+      <div class="step-count" id="count-recent">—</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-dot" id="dot-top-tracks"></div>
+      <div class="step-label" id="label-top-tracks">Top tracks — short / medium / long term</div>
+      <div class="step-count" id="count-top-tracks">—</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-dot" id="dot-top-artists"></div>
+      <div class="step-label" id="label-top-artists">Top artists — short / medium / long term</div>
+      <div class="step-count" id="count-top-artists">—</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-dot" id="dot-features"></div>
+      <div class="step-label" id="label-features">Audio features — valence, energy, tempo</div>
+      <div class="step-count" id="count-features">—</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-dot" id="dot-schema"></div>
+      <div class="step-label" id="label-schema">Culture domain signal schema mapping</div>
+      <div class="step-count" id="count-schema">—</div>
+    </div>
+  </div>
+
+  <!-- FINDINGS -->
+  <div class="envelope-block" id="envelopeBlock">
+    <div class="envelope-header">
+      <div class="envelope-title">Culture domain signal envelope — Spotify</div>
+      <div class="envelope-confidence" id="confidenceDisplay">—</div>
+    </div>
+    <div class="findings-grid" id="findingsGrid"></div>
+  </div>
+
+  <!-- JSON -->
+  <div class="json-block" id="jsonBlock">
+    <div class="json-header">
+      <div class="json-label">Signal envelope · culture · spotify · v1</div>
+      <button class="copy-btn" id="copyBtn" onclick="copyEnvelope()">Copy JSON</button>
+    </div>
+    <pre id="envelopeJson"></pre>
+  </div>
+
+</div>
+
+<script>
+// ── PKCE ──────────────────────────────────────────────
+async function generateCodeVerifier() {
+  const arr = new Uint8Array(64);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+async function generateCodeChallenge(v) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+// ── STATE ─────────────────────────────────────────────
+let accessToken = null;
+let signalEnvelope = null;
+
+// ── UI ────────────────────────────────────────────────
+function setStatus(msg, type='info') {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg; el.className = `status-bar show ${type}`;
+}
+function setStep(id, state, count=null) {
+  document.getElementById(`dot-${id}`).className   = `step-dot ${state}`;
+  document.getElementById(`label-${id}`).className = `step-label ${state}`;
+  if (count !== null) {
+    const el = document.getElementById(`count-${id}`);
+    el.textContent = count; el.className = `step-count ${state}`;
+  }
+}
+
+// ── OAUTH ─────────────────────────────────────────────
+async function initiateAuth() {
+  const clientId = document.getElementById('clientId').value.trim();
+  if (!clientId) { setStatus('Client ID required', 'err'); return; }
+
+  const verifier   = await generateCodeVerifier();
+  const challenge  = await generateCodeChallenge(verifier);
+  const state      = crypto.randomUUID();
+  const redirectUri = window.location.href.split('?')[0];
+
+  sessionStorage.setItem('spotify_verifier',   verifier);
+  sessionStorage.setItem('spotify_state',      state);
+  sessionStorage.setItem('spotify_client_id',  clientId);
+  sessionStorage.setItem('spotify_worker',     document.getElementById('workerUrl').value.trim());
+  sessionStorage.setItem('spotify_pull_days',  document.getElementById('pullDays').value);
+
+  const scope = [
+    'user-read-recently-played',
+    'user-top-read',
+    'user-read-playback-state',
+    'user-read-currently-playing',
+  ].join(' ');
+
+  const authUrl = `https://accounts.spotify.com/authorize` +
+    `?client_id=${clientId}` +
+    `&response_type=code` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&scope=${encodeURIComponent(scope)}` +
+    `&state=${state}` +
+    `&code_challenge=${challenge}` +
+    `&code_challenge_method=S256`;
+
+  window.location.href = authUrl;
+}
+
+// ── TOKEN EXCHANGE ────────────────────────────────────
+async function exchangeToken(code, verifier, clientId, workerUrl) {
+  const redirectUri = window.location.href.split('?')[0];
+  const resp = await fetch(`${workerUrl}/spotify/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectUri, client_id: clientId }),
+  });
+  if (!resp.ok) throw new Error(`Token exchange failed: ${resp.status}`);
+  const data = await resp.json();
+  if (!data.access_token) throw new Error(data.error_description || 'No access_token');
+  return data.access_token;
+}
+
+// ── API ───────────────────────────────────────────────
+async function spotifyGet(workerUrl, path, params={}) {
+  const qs  = new URLSearchParams(params).toString();
+  const url = `${workerUrl}/spotify/api${path}${qs ? '?'+qs : ''}`;
+  const resp = await fetch(url, { headers: { 'X-Spotify-Token': accessToken } });
+  if (!resp.ok) throw new Error(`API error ${resp.status} on ${path}`);
+  return resp.json();
+}
+
+// Fetch top items across three time ranges
+async function fetchTopItems(workerUrl, type, limit=50) {
+  const ranges = ['short_term','medium_term','long_term'];
+  const results = {};
+  for (const range of ranges) {
+    try {
+      const data = await spotifyGet(workerUrl, `/me/top/${type}`, { limit, time_range: range });
+      results[range] = data.items || [];
+    } catch { results[range] = []; }
+  }
+  return results;
+}
+
+// Batch audio features (max 100 per call)
+async function fetchAudioFeatures(workerUrl, trackIds) {
+  const features = [];
+  for (let i = 0; i < trackIds.length; i += 100) {
+    const batch = trackIds.slice(i, i+100);
+    try {
+      const data = await spotifyGet(workerUrl, '/audio-features', { ids: batch.join(',') });
+      if (data.audio_features) features.push(...data.audio_features.filter(Boolean));
+    } catch { /* skip batch */ }
+  }
+  return features;
+}
+
+// ── SIGNAL SCHEMA MAPPING ─────────────────────────────
+function mean(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+function stddev(arr) {
+  if (arr.length < 2) return null;
+  const m = mean(arr);
+  return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length);
+}
+
+function buildGenreProfile(topArtists) {
+  const counts = {};
+  for (const range of Object.values(topArtists)) {
+    for (const artist of range) {
+      for (const genre of (artist.genres||[])) {
+        counts[genre] = (counts[genre]||0) + 1;
+      }
+    }
+  }
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([g,c])=>({genre:g,count:c}));
+}
+
+function mapToSchema(profile, recentTracks, topTracks, topArtists, audioFeatures, pullDays) {
+  const now = new Date();
+
+  // Audio feature aggregates
+  const valences  = audioFeatures.map(f=>f.valence).filter(v=>v!=null);
+  const energies  = audioFeatures.map(f=>f.energy).filter(v=>v!=null);
+  const tempos    = audioFeatures.map(f=>f.tempo).filter(v=>v!=null);
+  const dances    = audioFeatures.map(f=>f.danceability).filter(v=>v!=null);
+  const acoustics = audioFeatures.map(f=>f.acousticness).filter(v=>v!=null);
+
+  const meanVal  = mean(valences);
+  const meanEn   = mean(energies);
+  const meanTmp  = mean(tempos);
+  const meanDan  = mean(dances);
+  const meanAco  = mean(acoustics);
+
+  // High vs low energy ratio
+  const highEnergy = energies.filter(e=>e>=0.65).length;
+  const lowEnergy  = energies.filter(e=>e< 0.40).length;
+  const energyRatio = energies.length ? round2(highEnergy/energies.length) : null;
+
+  // Genre profile
+  const genreProfile = buildGenreProfile(topArtists);
+
+  // Listening intensity proxy — recent tracks volume
+  const recentCount = recentTracks.length; // max 50 per Spotify API
+  const uniqueArtistsRecent = new Set(recentTracks.map(t=>t.track?.artists?.[0]?.name).filter(Boolean)).size;
+
+  // Discovery rate — short_term artists not in long_term
+  const longTermArtistIds = new Set((topArtists.long_term||[]).map(a=>a.id));
+  const shortTermArtists  = topArtists.short_term||[];
+  const newArtists = shortTermArtists.filter(a=>!longTermArtistIds.has(a.id));
+  const discoveryRate = shortTermArtists.length ? round2(newArtists.length/shortTermArtists.length) : null;
+
+  // Mood classification
+  let moodClass = 'neutral';
+  if (meanVal != null && meanEn != null) {
+    if (meanVal >= 0.6 && meanEn >= 0.6) moodClass = 'high_energy_positive';
+    else if (meanVal >= 0.6 && meanEn <  0.6) moodClass = 'calm_positive';
+    else if (meanVal <  0.4 && meanEn >= 0.6) moodClass = 'high_energy_tense';
+    else if (meanVal <  0.4 && meanEn <  0.4) moodClass = 'low_energy_negative';
+  }
+
+  // Signal confidence — DCS formula
+  const hasFeatures    = audioFeatures.length > 10 ? 1.0 : audioFeatures.length > 5 ? 0.75 : 0.5;
+  const hasTracks      = topTracks.long_term?.length > 20 ? 1.0 : 0.6;
+  const hasRecent      = recentCount >= 40 ? 1.0 : recentCount >= 20 ? 0.75 : 0.5;
+  const sourceRel      = 0.88; // Spotify data is complete and reliable
+  const dcs = (hasFeatures*0.35)+(hasTracks*0.30)+(hasRecent*0.20)+(sourceRel*0.15);
+  const signalConfidence = round2(dcs);
+
+  return {
+    envelope_version: '1.0',
+    generated_at: now.toISOString(),
+    source: 'Spotify',
+    signal_source: 'spotify',
+    signal_domain: 'culture',
+    subject_id: profile?.id ?? null,
+    pull_window_days: pullDays,
+    pull_end: now.toISOString().split('T')[0],
+
+    // ── AUDIO PROFILE ──
+    audio_profile: {
+      valence_mean:        round2(meanVal),
+      energy_mean:         round2(meanEn),
+      tempo_mean:          meanTmp ? Math.round(meanTmp) : null,
+      danceability_mean:   round2(meanDan),
+      acousticness_mean:   round2(meanAco),
+      energy_ratio_high:   energyRatio,
+      mood_classification: moodClass,
+      mood_note:           'valence = positivity 0–1. energy = intensity 0–1. Classification: high_energy_positive / calm_positive / high_energy_tense / low_energy_negative / neutral.',
+      tracks_analysed:     audioFeatures.length,
+    },
+
+    // ── GENRE PROFILE ──
+    genre_profile: genreProfile,
+    top_genre: genreProfile[0]?.genre ?? null,
+
+    // ── LISTENING BEHAVIOUR ──
+    listening_behaviour: {
+      recent_track_count:     recentCount,
+      recent_unique_artists:  uniqueArtistsRecent,
+      discovery_rate:         discoveryRate,
+      discovery_note:         'Ratio of short-term top artists not present in long-term top artists. Higher = more exploration.',
+      top_artists_short_term: (topArtists.short_term||[]).slice(0,10).map(a=>({name:a.name,genres:a.genres?.slice(0,3)||[]})),
+      top_artists_long_term:  (topArtists.long_term||[]).slice(0,10).map(a=>({name:a.name,genres:a.genres?.slice(0,3)||[]})),
+      top_tracks_short_term:  (topTracks.short_term||[]).slice(0,10).map(t=>({name:t.name,artist:t.artists?.[0]?.name})),
+    },
+
+    // ── CROSS-DOMAIN SYNTHESIS SIGNALS ──
+    synthesis_signals: {
+      valence_displacement_ready:  true,
+      note: 'valence_mean is cross-domain ready — compare against body recovery score and late-night send pattern for psychological state triangulation.',
+      energy_displacement_ready:   true,
+      genre_stability_signal:      discoveryRate !== null,
+      genre_stability_note:        'Low discovery rate = comfort-seeking behaviour. High discovery rate = expansive state. Both are displacement-relevant.',
+    },
+
+    // ── SIGNAL CONFIDENCE ──
+    signal_confidence:  signalConfidence,
+    synthesis_ready:    signalConfidence >= 0.65,
+    synthesis_gate:     signalConfidence >= 0.65
+      ? 'PASS — culture domain envelope ready for cross-domain synthesis'
+      : 'HOLD — insufficient data for synthesis',
+
+    data_quality: 'spotify_api_live',
+    data_quality_note: 'Recently played capped at 50 tracks by Spotify API. Top artists/tracks provide longer-window signal. Audio features from top tracks sample.',
+  };
+}
+
+function round2(v) { return v != null ? Math.round(v*100)/100 : null; }
+
+// ── RENDER ────────────────────────────────────────────
+function renderFindings(env) {
+  const ap = env.audio_profile;
+  const lb = env.listening_behaviour;
+  const confidence = Math.round(env.signal_confidence * 100);
+
+  document.getElementById('confidenceDisplay').textContent = `Signal confidence: ${confidence}%`;
+
+  const moodColour = {
+    high_energy_positive: 'var(--good)',
+    calm_positive:        'var(--spotify)',
+    high_energy_tense:    'var(--warn)',
+    low_energy_negative:  'var(--muted)',
+    neutral:              'var(--text)',
+  }[ap.mood_classification] || 'var(--text)';
+
+  const topGenreTags = env.genre_profile.slice(0,8).map((g,i)=>
+    `<span class="culture-tag ${i<3?'primary':''}">${g.genre}</span>`
+  ).join('');
+
+  document.getElementById('findingsGrid').innerHTML = `
+    <div class="finding-card">
+      <div class="finding-card-label">Mood classification</div>
+      <div class="finding-card-value" style="color:${moodColour};font-size:13px">${ap.mood_classification.replace(/_/g,' ')}</div>
+      <div class="finding-card-note">
+        Valence ${ap.valence_mean ?? '—'} &nbsp;·&nbsp; Energy ${ap.energy_mean ?? '—'}<br>
+        <span class="sig">Displacement-ready signal — cross-domain synthesis enabled</span>
+      </div>
+    </div>
+    <div class="finding-card">
+      <div class="finding-card-label">Audio profile</div>
+      <div class="finding-card-value">${ap.tempo_mean ?? '—'} <span style="font-size:12px;color:var(--muted)">bpm</span></div>
+      <div class="finding-card-note">
+        Danceability ${ap.danceability_mean ?? '—'} &nbsp;·&nbsp; Acousticness ${ap.acousticness_mean ?? '—'}<br>
+        High energy ratio: ${ap.energy_ratio_high != null ? Math.round(ap.energy_ratio_high*100)+'%' : '—'} &nbsp;·&nbsp; ${ap.tracks_analysed} tracks analysed
+      </div>
+    </div>
+    <div class="finding-card">
+      <div class="finding-card-label">Discovery rate</div>
+      <div class="finding-card-value">${lb.discovery_rate != null ? Math.round(lb.discovery_rate*100)+'%' : '—'}</div>
+      <div class="finding-card-note">
+        New artists (short-term vs long-term baseline)<br>
+        <span class="ok">Low = comfort-seeking &nbsp;·&nbsp; High = expansive state</span>
+      </div>
+    </div>
+    <div class="finding-card">
+      <div class="finding-card-label">Recent listening</div>
+      <div class="finding-card-value">${lb.recent_track_count} <span style="font-size:12px;color:var(--muted)">tracks</span></div>
+      <div class="finding-card-note">
+        ${lb.recent_unique_artists} unique artists<br>
+        Top: ${lb.top_artists_short_term.slice(0,3).map(a=>a.name).join(', ') || '—'}
+      </div>
+    </div>
+    <div class="culture-block">
+      <div class="culture-block-label">Genre profile</div>
+      <div class="culture-tags">${topGenreTags}</div>
+    </div>
+  `;
+}
+
+// ── MAIN INGESTION ────────────────────────────────────
+async function runIngestion(token, workerUrl, pullDays) {
+  accessToken = token;
+  document.getElementById('progressBlock').classList.add('show');
+
+  setStep('auth', 'done', 'token valid');
+
+  setStep('profile', 'active');
+  let profile;
+  try {
+    profile = await spotifyGet(workerUrl, '/me');
+    setStep('profile', 'done', profile.display_name || profile.id);
+  } catch(e) { setStep('profile', 'error', 'failed'); profile = null; }
+
+  setStep('recent', 'active');
+  let recentTracks = [];
+  try {
+    const data = await spotifyGet(workerUrl, '/me/player/recently-played', { limit: 50 });
+    recentTracks = data.items || [];
+    setStep('recent', 'done', `${recentTracks.length} tracks`);
+  } catch(e) { setStep('recent', 'error', 'failed'); }
+
+  setStep('top-tracks', 'active');
+  let topTracks = { short_term:[], medium_term:[], long_term:[] };
+  try {
+    topTracks = await fetchTopItems(workerUrl, 'tracks', 50);
+    const total = Object.values(topTracks).reduce((s,a)=>s+a.length,0);
+    setStep('top-tracks', 'done', `${total} tracks`);
+  } catch(e) { setStep('top-tracks', 'error', 'failed'); }
+
+  setStep('top-artists', 'active');
+  let topArtists = { short_term:[], medium_term:[], long_term:[] };
+  try {
+    topArtists = await fetchTopItems(workerUrl, 'artists', 50);
+    const total = Object.values(topArtists).reduce((s,a)=>s+a.length,0);
+    setStep('top-artists', 'done', `${total} artists`);
+  } catch(e) { setStep('top-artists', 'error', 'failed'); }
+
+  setStep('features', 'active');
+  let audioFeatures = [];
+  try {
+    const allTrackIds = [
+      ...recentTracks.map(t=>t.track?.id).filter(Boolean),
+      ...(topTracks.short_term||[]).map(t=>t.id).filter(Boolean),
+      ...(topTracks.medium_term||[]).map(t=>t.id).filter(Boolean),
+    ];
+    const uniqueIds = [...new Set(allTrackIds)].slice(0, 200);
+    audioFeatures = await fetchAudioFeatures(workerUrl, uniqueIds);
+    setStep('features', 'done', `${audioFeatures.length} tracks`);
+  } catch(e) { setStep('features', 'error', 'failed'); }
+
+  setStep('schema', 'active');
+  let envelope;
+  try {
+    envelope = mapToSchema(profile, recentTracks, topTracks, topArtists, audioFeatures, pullDays);
+    setStep('schema', 'done', `DCS ${Math.round(envelope.signal_confidence*100)}%`);
+  } catch(e) {
+    setStep('schema', 'error', 'failed');
+    setStatus(`Schema mapping error: ${e.message}`, 'err');
+    return;
+  }
+
+  signalEnvelope = envelope;
+  renderFindings(envelope);
+  document.getElementById('envelopeBlock').classList.add('show');
+  document.getElementById('envelopeJson').textContent = JSON.stringify(envelope, null, 2);
+  document.getElementById('jsonBlock').classList.add('show');
+
+  setStatus(
+    envelope.synthesis_ready
+      ? `✓ Culture domain envelope complete — synthesis ready (DCS ${Math.round(envelope.signal_confidence*100)}%)`
+      : `⚠ Envelope built — confidence below synthesis threshold`,
+    envelope.synthesis_ready ? 'ok' : 'warn'
+  );
+}
+
+// ── COPY ──────────────────────────────────────────────
+function copyEnvelope() {
+  if (!signalEnvelope) return;
+  navigator.clipboard.writeText(JSON.stringify(signalEnvelope, null, 2)).then(()=>{
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='Copy JSON'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── CALLBACK HANDLER ──────────────────────────────────
+(async function handleCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code   = params.get('code');
+  const state  = params.get('state');
+  const error  = params.get('error');
+
+  if (error) { setStatus(`Spotify auth error: ${error}`, 'err'); return; }
+  if (!code) return;
+
+  if (state !== sessionStorage.getItem('spotify_state')) {
+    setStatus('OAuth state mismatch — possible CSRF. Do not proceed.', 'err'); return;
+  }
+
+  const verifier  = sessionStorage.getItem('spotify_verifier');
+  const clientId  = sessionStorage.getItem('spotify_client_id');
+  const workerUrl = sessionStorage.getItem('spotify_worker');
+  const pullDays  = parseInt(sessionStorage.getItem('spotify_pull_days') || '190');
+
+  if (!verifier || !clientId || !workerUrl) {
+    setStatus('Session state missing — restart OAuth flow', 'err'); return;
+  }
+
+  document.getElementById('clientId').value  = clientId;
+  document.getElementById('workerUrl').value = workerUrl;
+  document.getElementById('pullDays').value  = pullDays;
+
+  window.history.replaceState({}, document.title, window.location.pathname);
+  setStatus('OAuth callback received — exchanging token…', 'info');
+
+  try {
+    const token = await exchangeToken(code, verifier, clientId, workerUrl);
+    await runIngestion(token, workerUrl, pullDays);
+  } catch(e) {
+    setStatus(`Token exchange failed: ${e.message}`, 'err');
+  }
+})();
+</script>
+</body>
+</html>

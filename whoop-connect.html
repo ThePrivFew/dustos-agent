@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DustOS — Whoop Body Signal Connector</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:       #0a0a0b;
+    --surface:  #111114;
+    --border:   #1e1e24;
+    --dim:      #2a2a33;
+    --text:     #e8e8f0;
+    --muted:    #6b6b80;
+    --accent:   #c8ff00;
+    --whoop:    #00d4ff;
+    --warn:     #ff6b35;
+    --good:     #39e07a;
+    --mono:     'Space Mono', monospace;
+    --sans:     'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--accent); }
+  .pipe { color: var(--dim); margin: 0 4px; }
+  .connector-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--whoop);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid rgba(0,212,255,0.2);
+    padding: 3px 8px;
+    border-radius: 2px;
+    background: rgba(0,212,255,0.04);
+  }
+  .build-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 48px 32px;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 300;
+    margin-bottom: 48px;
+    line-height: 1.6;
+  }
+
+  /* ── SCHEMA NOTICE ── */
+  .schema-notice {
+    background: rgba(0,212,255,0.04);
+    border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-bottom: 40px;
+  }
+  .schema-notice-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--whoop);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .schema-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 32px;
+  }
+  .schema-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .schema-key {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .schema-val {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 400;
+  }
+  .schema-val.diff { color: var(--accent); }
+
+  /* ── CONFIG ── */
+  .config-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+  .config-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .field-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .field-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: 3px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field-input:focus { border-color: var(--whoop); }
+  .field-note {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .field-note a { color: var(--whoop); text-decoration: none; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+  .btn-primary:hover { background: #d4ff20; transform: translateY(-1px); }
+  .btn-primary:disabled { background: var(--dim); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .btn-whoop {
+    background: var(--whoop);
+    color: #000;
+    font-weight: 700;
+  }
+  .btn-whoop:hover { background: #20d8ff; transform: translateY(-1px); }
+  .btn-whoop:disabled { background: var(--dim); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--dim); }
+
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+
+  /* ── STATUS ── */
+  .status-bar {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 10px 14px;
+    border-radius: 3px;
+    margin-bottom: 16px;
+    display: none;
+    letter-spacing: 0.05em;
+  }
+  .status-bar.show { display: block; }
+  .status-bar.info { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); color: var(--whoop); }
+  .status-bar.ok   { background: rgba(57,224,122,0.08); border: 1px solid rgba(57,224,122,0.2); color: var(--good); }
+  .status-bar.err  { background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.2); color: var(--warn); }
+  .status-bar.warn { background: rgba(200,255,0,0.06); border: 1px solid rgba(200,255,0,0.2); color: var(--accent); }
+
+  /* ── PROGRESS ── */
+  .progress-block {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+  .progress-block.show { display: block; }
+  .progress-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .progress-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .progress-step:last-child { border-bottom: none; }
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--dim);
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .step-dot.active { background: var(--whoop); box-shadow: 0 0 8px rgba(0,212,255,0.5); animation: pulse 1s infinite; }
+  .step-dot.done   { background: var(--good); }
+  .step-dot.error  { background: var(--warn); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .step-label { color: var(--muted); }
+  .step-label.active { color: var(--whoop); }
+  .step-label.done   { color: var(--good); }
+  .step-label.error  { color: var(--warn); }
+  .step-count { margin-left: auto; color: var(--dim); font-size: 10px; }
+  .step-count.done { color: var(--good); }
+
+  /* ── ENVELOPE OUTPUT ── */
+  .envelope-block {
+    display: none;
+    margin-bottom: 24px;
+  }
+  .envelope-block.show { display: block; }
+
+  .envelope-header {
+    background: rgba(57,224,122,0.06);
+    border: 1px solid rgba(57,224,122,0.2);
+    border-radius: 4px 4px 0 0;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .envelope-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--good);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .envelope-confidence {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--good);
+  }
+
+  .findings-grid {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .finding-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 16px;
+  }
+  .finding-card-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .finding-card-value {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .finding-card-note {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .finding-card-note .flag { color: var(--warn); }
+  .finding-card-note .ok   { color: var(--good); }
+
+  .methodology-block {
+    background: rgba(200,255,0,0.04);
+    border: 1px solid rgba(200,255,0,0.12);
+    border-radius: 3px;
+    padding: 16px;
+    margin-top: 12px;
+    grid-column: 1 / -1;
+  }
+  .methodology-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .methodology-text {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* ── JSON OUTPUT ── */
+  .json-block {
+    display: none;
+    margin-bottom: 24px;
+  }
+  .json-block.show { display: block; }
+  .json-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px 4px 0 0;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .json-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--dim); }
+  .copy-btn.copied { color: var(--good); border-color: rgba(57,224,122,0.3); }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    padding: 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    overflow-x: auto;
+    max-height: 420px;
+    overflow-y: auto;
+    line-height: 1.7;
+  }
+
+  /* ── WORKER SPEC ── */
+  .worker-spec {
+    background: var(--surface);
+    border: 1px solid rgba(200,255,0,0.15);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .worker-spec-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .worker-spec pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 11px;
+    max-height: 320px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo"><span>DustOS</span> <span class="pipe">|</span> Layer 2</div>
+    <div class="connector-label">Whoop · Body Domain</div>
+  </div>
+  <div class="build-tag">build 0.1 · april 2026</div>
+</div>
+
+<div class="main">
+
+  <div class="section-label">Signal Ingestion Pipeline</div>
+  <h1>Whoop Body Connector</h1>
+  <p class="subtitle">
+    Physiological cycle ingestion — recovery, HRV, sleep, strain.<br>
+    190-day pull against the DustOS body domain signal schema. Methodology deltas from Garmin flagged in envelope.
+  </p>
+
+  <!-- SCHEMA METHODOLOGY NOTICE -->
+  <div class="schema-notice">
+    <div class="schema-notice-title">Schema methodology record — Whoop vs Garmin deltas</div>
+    <div class="schema-grid">
+      <div class="schema-row">
+        <div class="schema-key">hrv_methodology</div>
+        <div class="schema-val diff">whoop_rmssd_slow_wave</div>
+      </div>
+      <div class="schema-row">
+        <div class="schema-key">garmin equivalent</div>
+        <div class="schema-val">overnight_average_5min_window</div>
+      </div>
+      <div class="schema-row">
+        <div class="schema-key">recovery_model</div>
+        <div class="schema-val diff">whoop_readiness (0–100)</div>
+      </div>
+      <div class="schema-row">
+        <div class="schema-key">garmin equivalent</div>
+        <div class="schema-val">body_battery_energy (0–100)</div>
+      </div>
+      <div class="schema-row">
+        <div class="schema-key">exertion_model</div>
+        <div class="schema-val diff">whoop_strain (0–21 cardiovascular load)</div>
+      </div>
+      <div class="schema-row">
+        <div class="schema-key">garmin equivalent</div>
+        <div class="schema-val">training_load_epoc</div>
+      </div>
+      <div class="schema-row">
+        <div class="schema-key">time_unit</div>
+        <div class="schema-val diff">physiological_cycle (not calendar day)</div>
+      </div>
+      <div class="schema-row">
+        <div class="schema-key">synthesis note</div>
+        <div class="schema-val">HRV values not directly comparable across devices</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKER ROUTES REQUIRED -->
+  <div class="worker-spec">
+    <div class="worker-spec-title">⚠ Cloudflare Worker — routes required before OAuth will function</div>
+    <pre id="workerSpec">// Add to dustos-proxy.thewattleroad.workers.dev
+
+// Environment variables to add:
+// WHOOP_CLIENT_ID      — from app.whoop.com/developer
+// WHOOP_CLIENT_SECRET  — from app.whoop.com/developer
+// WHOOP_REDIRECT_URI   — https://theprivfew.github.io/dustos-agent/whoop-connect.html
+
+// Route 1: Token exchange
+if (url.pathname === '/whoop/token') {
+  const body = await request.json();
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: body.code,
+    redirect_uri: env.WHOOP_REDIRECT_URI,
+    client_id: env.WHOOP_CLIENT_ID,
+    client_secret: env.WHOOP_CLIENT_SECRET,
+    code_verifier: body.code_verifier,
+  });
+  const resp = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  const data = await resp.json();
+  return new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN }
+  });
+}
+
+// Route 2: API proxy (all Whoop API calls)
+if (url.pathname.startsWith('/whoop/api/')) {
+  const whoopPath = url.pathname.replace('/whoop/api', '');
+  const whoopUrl = 'https://api.prod.whoop.com/developer/v1' + whoopPath + url.search;
+  const token = request.headers.get('X-Whoop-Token');
+  const resp = await fetch(whoopUrl, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const data = await resp.json();
+  return new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN }
+  });
+}</pre>
+  </div>
+
+  <!-- STEP 1: CONFIGURE -->
+  <div class="config-block">
+    <div class="config-title">01 — Connector configuration</div>
+
+    <div class="field-row">
+      <div class="field-label">Client ID</div>
+      <div>
+        <input class="field-input" id="clientId" type="text" placeholder="Whoop app client_id" autocomplete="off" />
+        <div class="field-note">From <a href="https://app.whoop.com/developer" target="_blank">app.whoop.com/developer</a> → Your App → Client ID</div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field-label">Worker base URL</div>
+      <div>
+        <input class="field-input" id="workerUrl" type="text" value="https://dustos-proxy.thewattleroad.workers.dev" />
+        <div class="field-note">Cloudflare Worker — must have /whoop/token and /whoop/api/* routes deployed</div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field-label">Pull window (days)</div>
+      <div>
+        <input class="field-input" id="pullDays" type="number" value="190" min="30" max="400" />
+        <div class="field-note">190 days default. Extend to 400 for full 2025 baseline once clean window is established.</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-whoop" id="authBtn" onclick="initiateAuth()">Connect Whoop</button>
+    </div>
+  </div>
+
+  <div id="statusBar" class="status-bar"></div>
+
+  <!-- PROGRESS -->
+  <div class="progress-block" id="progressBlock">
+    <div class="progress-title">Signal ingestion — body domain</div>
+    <div class="progress-step" id="step-auth">
+      <div class="step-dot" id="dot-auth"></div>
+      <div class="step-label" id="label-auth">OAuth token exchange</div>
+      <div class="step-count" id="count-auth">—</div>
+    </div>
+    <div class="progress-step" id="step-profile">
+      <div class="step-dot" id="dot-profile"></div>
+      <div class="step-label" id="label-profile">User profile</div>
+      <div class="step-count" id="count-profile">—</div>
+    </div>
+    <div class="progress-step" id="step-cycles">
+      <div class="step-dot" id="dot-cycles"></div>
+      <div class="step-label" id="label-cycles">Physiological cycles</div>
+      <div class="step-count" id="count-cycles">—</div>
+    </div>
+    <div class="progress-step" id="step-recovery">
+      <div class="step-dot" id="dot-recovery"></div>
+      <div class="step-label" id="label-recovery">Recovery scores</div>
+      <div class="step-count" id="count-recovery">—</div>
+    </div>
+    <div class="progress-step" id="step-sleep">
+      <div class="step-dot" id="dot-sleep"></div>
+      <div class="step-label" id="label-sleep">Sleep data</div>
+      <div class="step-count" id="count-sleep">—</div>
+    </div>
+    <div class="progress-step" id="step-workout">
+      <div class="step-dot" id="dot-workout"></div>
+      <div class="step-label" id="label-workout">Workout / strain data</div>
+      <div class="step-count" id="count-workout">—</div>
+    </div>
+    <div class="progress-step" id="step-schema">
+      <div class="step-dot" id="dot-schema"></div>
+      <div class="step-label" id="label-schema">Signal schema mapping</div>
+      <div class="step-count" id="count-schema">—</div>
+    </div>
+    <div class="progress-step" id="step-synthesis">
+      <div class="step-dot" id="dot-synthesis"></div>
+      <div class="step-label" id="label-synthesis">Envelope assembly + synthesis</div>
+      <div class="step-count" id="count-synthesis">—</div>
+    </div>
+  </div>
+
+  <!-- FINDINGS -->
+  <div class="envelope-block" id="envelopeBlock">
+    <div class="envelope-header">
+      <div class="envelope-title">Body domain signal envelope — Whoop</div>
+      <div class="envelope-confidence" id="confidenceDisplay">—</div>
+    </div>
+    <div class="findings-grid" id="findingsGrid">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- JSON ENVELOPE -->
+  <div class="json-block" id="jsonBlock">
+    <div class="json-header">
+      <div class="json-label">Signal envelope · body · whoop · v1</div>
+      <button class="copy-btn" id="copyBtn" onclick="copyEnvelope()">Copy JSON</button>
+    </div>
+    <pre id="envelopeJson"></pre>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════
+// PKCE UTILITIES
+// ═══════════════════════════════════════════════
+
+async function generateCodeVerifier() {
+  const array = new Uint8Array(64);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode.apply(null, array))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function generateCodeChallenge(verifier) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const bytes = new Uint8Array(digest);
+  return btoa(String.fromCharCode.apply(null, bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+
+let accessToken = null;
+let signalEnvelope = null;
+
+// ═══════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════
+
+function setStatus(msg, type = 'info') {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.className = `status-bar show ${type}`;
+}
+
+function setStep(id, state, count = null) {
+  const dot = document.getElementById(`dot-${id}`);
+  const label = document.getElementById(`label-${id}`);
+  const cnt = document.getElementById(`count-${id}`);
+  dot.className = `step-dot ${state}`;
+  label.className = `step-label ${state}`;
+  if (count !== null) {
+    cnt.textContent = count;
+    cnt.className = `step-count ${state}`;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// OAUTH
+// ═══════════════════════════════════════════════
+
+async function initiateAuth() {
+  const clientId = document.getElementById('clientId').value.trim();
+  if (!clientId) { setStatus('Client ID required', 'err'); return; }
+
+  const verifier = await generateCodeVerifier();
+  const challenge = await generateCodeChallenge(verifier);
+  const state = crypto.randomUUID();
+
+  sessionStorage.setItem('whoop_verifier', verifier);
+  sessionStorage.setItem('whoop_state', state);
+  sessionStorage.setItem('whoop_client_id', clientId);
+  sessionStorage.setItem('whoop_worker', document.getElementById('workerUrl').value.trim());
+  sessionStorage.setItem('whoop_pull_days', document.getElementById('pullDays').value);
+
+  const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
+  const scope = encodeURIComponent('read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement');
+
+  const authUrl = `https://api.prod.whoop.com/oauth/oauth2/auth` +
+    `?client_id=${clientId}` +
+    `&response_type=code` +
+    `&redirect_uri=${redirectUri}` +
+    `&scope=${scope}` +
+    `&state=${state}` +
+    `&code_challenge=${challenge}` +
+    `&code_challenge_method=S256`;
+
+  window.location.href = authUrl;
+}
+
+// ═══════════════════════════════════════════════
+// TOKEN EXCHANGE
+// ═══════════════════════════════════════════════
+
+async function exchangeToken(code, verifier, clientId, workerUrl) {
+  const redirectUri = window.location.href.split('?')[0];
+  const resp = await fetch(`${workerUrl}/whoop/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectUri, client_id: clientId })
+  });
+  if (!resp.ok) throw new Error(`Token exchange failed: ${resp.status}`);
+  const data = await resp.json();
+  if (!data.access_token) throw new Error('No access_token in response');
+  return data.access_token;
+}
+
+// ═══════════════════════════════════════════════
+// WHOOP API CALLS (via proxy)
+// ═══════════════════════════════════════════════
+
+async function whoopGet(workerUrl, path, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const url = `${workerUrl}/whoop/api${path}${qs ? '?' + qs : ''}`;
+  const resp = await fetch(url, { headers: { 'X-Whoop-Token': accessToken } });
+  if (!resp.ok) throw new Error(`API error ${resp.status} on ${path}`);
+  return resp.json();
+}
+
+// Paginated pull — follows next_token until exhausted or limit reached
+async function whoopGetAll(workerUrl, path, baseParams = {}, maxRecords = 2000) {
+  const records = [];
+  let nextToken = null;
+  do {
+    const params = { ...baseParams, limit: 25 };
+    if (nextToken) params.nextToken = nextToken;
+    const data = await whoopGet(workerUrl, path, params);
+    if (data.records) records.push(...data.records);
+    nextToken = data.next_token || null;
+  } while (nextToken && records.length < maxRecords);
+  return records;
+}
+
+// ═══════════════════════════════════════════════
+// DATE HELPERS
+// ═══════════════════════════════════════════════
+
+function isoDate(d) { return d.toISOString().split('T')[0]; }
+
+// ═══════════════════════════════════════════════
+// SIGNAL SCHEMA MAPPING
+// ═══════════════════════════════════════════════
+
+function mapToSchema(profile, cycles, recoveries, sleepRecords, workouts, pullDays) {
+  const now = new Date();
+  const windowStart = new Date(now - pullDays * 86400000);
+
+  // Index recoveries by cycle_id
+  const recoveryByCycle = {};
+  for (const r of recoveries) {
+    recoveryByCycle[r.cycle_id] = r;
+  }
+
+  // Build per-cycle records
+  const cycleData = cycles.map(c => {
+    const rec = recoveryByCycle[c.id] || null;
+    return {
+      cycle_id: c.id,
+      start: c.start,
+      end: c.end,
+      strain_score: c.score?.strain ?? null,
+      kilojoule: c.score?.kilojoule ?? null,
+      average_heart_rate: c.score?.average_heart_rate ?? null,
+      max_heart_rate: c.score?.max_heart_rate ?? null,
+      recovery_score: rec?.score?.recovery_score ?? null,
+      hrv_rmssd_milli: rec?.score?.hrv_rmssd_milli ?? null,
+      resting_heart_rate: rec?.score?.resting_heart_rate ?? null,
+      spo2_percentage: rec?.score?.spo2_percentage ?? null,
+      skin_temp_celsius: rec?.score?.skin_temp_celsius ?? null,
+      sleep_performance_pct: rec?.score?.sleep_performance_percentage ?? null,
+    };
+  });
+
+  // Compute aggregate statistics
+  const validHrv = cycleData.filter(c => c.hrv_rmssd_milli !== null).map(c => c.hrv_rmssd_milli);
+  const validRecovery = cycleData.filter(c => c.recovery_score !== null).map(c => c.recovery_score);
+  const validStrain = cycleData.filter(c => c.strain_score !== null).map(c => c.strain_score);
+  const validRhr = cycleData.filter(c => c.resting_heart_rate !== null).map(c => c.resting_heart_rate);
+  const validSleep = cycleData.filter(c => c.sleep_performance_pct !== null).map(c => c.sleep_performance_pct);
+
+  const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+  const stddev = arr => {
+    if (arr.length < 2) return null;
+    const m = mean(arr);
+    return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
+  };
+  const percentile = (arr, p) => {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a, b) => a - b);
+    return s[Math.floor((p / 100) * s.length)];
+  };
+
+  // Signal confidence scoring
+  // Freshness 35%, Completeness 30%, Consistency 20%, Source Reliability 15%
+  const totalCycles = cycleData.length;
+  const cyclesWithRecovery = validRecovery.length;
+  const completenessRatio = totalCycles > 0 ? cyclesWithRecovery / totalCycles : 0;
+  const freshnessScore = totalCycles >= 120 ? 1.0 : totalCycles >= 60 ? 0.75 : 0.5;
+  const completenessScore = completenessRatio >= 0.85 ? 1.0 : completenessRatio >= 0.6 ? 0.75 : completenessRatio >= 0.4 ? 0.5 : 0.25;
+  const hrvCv = validHrv.length ? (stddev(validHrv) || 0) / (mean(validHrv) || 1) : 0;
+  const consistencyScore = hrvCv < 0.3 ? 1.0 : hrvCv < 0.5 ? 0.75 : 0.5;
+  const sourceReliabilityScore = 0.90; // Whoop is a dedicated biometric device
+
+  const dcs = (freshnessScore * 0.35) + (completenessScore * 0.30) + (consistencyScore * 0.20) + (sourceReliabilityScore * 0.15);
+  const signalConfidence = Math.round(dcs * 100) / 100;
+
+  // Trend: last 30 cycles vs prior 30 cycles
+  const last30 = cycleData.slice(-30).filter(c => c.hrv_rmssd_milli !== null).map(c => c.hrv_rmssd_milli);
+  const prior30 = cycleData.slice(-60, -30).filter(c => c.hrv_rmssd_milli !== null).map(c => c.hrv_rmssd_milli);
+  const hrvTrend = (last30.length && prior30.length)
+    ? ((mean(last30) - mean(prior30)) / mean(prior30) * 100).toFixed(1)
+    : null;
+
+  return {
+    envelope_version: '1.0',
+    generated_at: now.toISOString(),
+    subject_id: profile?.user_id ?? null,
+    signal_domain: 'body',
+
+    // ── USER CONFIGURATION RECORD ──
+    // source is the typed connector identity — written from user config, not inferred.
+    // Synthesis engine reads source + device_baseline as the primary gate.
+    // signal_source is the schema label (lowercase, internal). source is the config declaration.
+    source: 'Whoop',
+    signal_source: 'whoop',
+
+    pull_window_days: pullDays,
+    pull_start: isoDate(windowStart),
+    pull_end: isoDate(now),
+
+    // ── DEVICE BASELINE — machine-readable gate for synthesis engine ──
+    // This is the authoritative cross-device compatibility record.
+    // Synthesis engine MUST check device_baseline.mismatch_action before any
+    // cross-source baseline comparison. Do not rely on methodology prose for gating.
+    device_baseline: {
+      device: 'Whoop',
+      baseline_scoped_to_device: true,           // this baseline is ONLY valid for Whoop source envelopes
+      hrv_cross_device_compatible: false,         // BLOCK: Whoop rMSSD ≠ Garmin overnight avg
+      recovery_cross_device_compatible: false,    // BLOCK: Whoop readiness ≠ Garmin Body Battery
+      rhr_cross_device_compatible: true,          // PASS: resting HR is device-agnostic
+      strain_cross_device_compatible: false,      // BLOCK: Whoop strain (0-21) ≠ Garmin Training Load
+      sleep_cross_device_compatible: 'partial',   // PARTIAL: duration comparable, scoring methodology differs
+      mismatch_action: 'WARN_AND_BLOCK',          // required action when source field of incoming envelope ≠ 'Whoop'
+      mismatch_fields: ['hrv_rmssd_milli', 'recovery_score', 'strain_score'],  // fields that trigger WARN_AND_BLOCK
+      compatible_fields: ['resting_heart_rate'],  // fields safe for cross-device comparison
+    },
+
+    // ── METHODOLOGY RECORD — supplementary context for synthesis engine ──
+    methodology: {
+      hrv_methodology: 'whoop_rmssd_slow_wave_phase',
+      hrv_note: 'Measured during final slow-wave sleep phase. Not interchangeable with Garmin overnight_average_5min_window.',
+      recovery_model: 'whoop_readiness',
+      recovery_note: 'Composite of HRV, RHR, respiratory rate, sleep performance. Different construct from Garmin Body Battery energy model.',
+      exertion_model: 'whoop_strain_cardiovascular',
+      exertion_note: 'Scale 0–21 cardiovascular load. Not directly comparable to Garmin EPOC-based Training Load.',
+      time_unit: 'physiological_cycle',
+      time_note: 'Whoop cycles are physiological, not calendar days. Do not assume 24hr boundaries.',
+    },
+
+    // ── AGGREGATE STATISTICS ──
+    statistics: {
+      total_cycles: totalCycles,
+      cycles_with_recovery_data: cyclesWithRecovery,
+      completeness_ratio: Math.round(completenessRatio * 100) / 100,
+
+      hrv_rmssd_mean: validHrv.length ? Math.round(mean(validHrv) * 10) / 10 : null,
+      hrv_rmssd_stddev: validHrv.length > 1 ? Math.round(stddev(validHrv) * 10) / 10 : null,
+      hrv_rmssd_p25: percentile(validHrv, 25),
+      hrv_rmssd_p75: percentile(validHrv, 75),
+      hrv_trend_30d_vs_prior_30d_pct: hrvTrend ? parseFloat(hrvTrend) : null,
+
+      recovery_score_mean: validRecovery.length ? Math.round(mean(validRecovery) * 10) / 10 : null,
+      recovery_score_stddev: validRecovery.length > 1 ? Math.round(stddev(validRecovery) * 10) / 10 : null,
+      recovery_score_p25: percentile(validRecovery, 25),
+      recovery_score_p75: percentile(validRecovery, 75),
+
+      resting_hr_mean: validRhr.length ? Math.round(mean(validRhr) * 10) / 10 : null,
+      strain_mean: validStrain.length ? Math.round(mean(validStrain) * 10) / 10 : null,
+      sleep_performance_pct_mean: validSleep.length ? Math.round(mean(validSleep) * 10) / 10 : null,
+    },
+
+    // ── SIGNAL CONFIDENCE (DCS) ──
+    signal_confidence: signalConfidence,
+    confidence_components: {
+      freshness: Math.round(freshnessScore * 100) / 100,
+      completeness: Math.round(completenessScore * 100) / 100,
+      consistency: Math.round(consistencyScore * 100) / 100,
+      source_reliability: sourceReliabilityScore,
+    },
+    synthesis_ready: signalConfidence >= 0.65,
+    synthesis_gate: signalConfidence >= 0.65
+      ? 'PASS — envelope eligible for cross-domain synthesis'
+      : 'HOLD — confidence below 0.65 threshold, extend pull window or await more data',
+
+    // ── RAW DATA ──
+    cycle_count: cycleData.length,
+    sleep_record_count: sleepRecords.length,
+    workout_count: workouts.length,
+
+    // ── DATA QUALITY ──
+    data_quality: 'whoop_clean',
+    data_quality_notes: 'Whoop is worn-device — no hardware gap equivalent to Garmin band break. Gaps represent non-wear or missed syncs. synthesis_ready flag governs eligibility.',
+  };
+}
+
+// ═══════════════════════════════════════════════
+// SOURCE MISMATCH VALIDATION
+// Called by synthesis engine before any cross-envelope baseline comparison.
+// Returns { compatible: bool, warnings: [], blocked_fields: [], safe_fields: [] }
+// ═══════════════════════════════════════════════
+
+function validateSourceCompatibility(incomingEnvelope, baselineEnvelope) {
+  const result = {
+    compatible: false,
+    action: null,
+    warnings: [],
+    blocked_fields: [],
+    safe_fields: [],
+  };
+
+  const baselineSource  = baselineEnvelope?.source;
+  const incomingSource  = incomingEnvelope?.source;
+  const mismatchAction  = baselineEnvelope?.device_baseline?.mismatch_action ?? 'WARN_AND_BLOCK';
+
+  // Exact source match — no mismatch
+  if (incomingSource === baselineSource) {
+    result.compatible = true;
+    result.action = 'PASS';
+    result.safe_fields = Object.keys(incomingEnvelope?.statistics ?? {});
+    return result;
+  }
+
+  // Source mismatch detected
+  result.action = mismatchAction;
+
+  const db = baselineEnvelope?.device_baseline ?? {};
+
+  // Enumerate field-level decisions
+  const fieldMap = {
+    hrv_rmssd_milli:    db.hrv_cross_device_compatible,
+    recovery_score:     db.recovery_cross_device_compatible,
+    strain_score:       db.strain_cross_device_compatible,
+    resting_heart_rate: db.rhr_cross_device_compatible,
+    sleep_performance:  db.sleep_cross_device_compatible,
+  };
+
+  for (const [field, compat] of Object.entries(fieldMap)) {
+    if (compat === true) {
+      result.safe_fields.push(field);
+    } else if (compat === 'partial') {
+      result.safe_fields.push(field);
+      result.warnings.push(`${field}: partial compatibility — methodology differs between ${incomingSource} and ${baselineSource}. Verify before synthesis.`);
+    } else {
+      result.blocked_fields.push(field);
+      result.warnings.push(`SOURCE_MISMATCH [${mismatchAction}]: ${field} from source="${incomingSource}" is not compatible with baseline source="${baselineSource}". Raw values must not be compared.`);
+    }
+  }
+
+  result.compatible = result.blocked_fields.length === 0;
+  return result;
+}
+
+
+function renderFindings(env) {
+  const s = env.statistics;
+  const db = env.device_baseline;
+  const confidence = Math.round(env.signal_confidence * 100);
+
+  document.getElementById('confidenceDisplay').textContent = `Signal confidence: ${confidence}%`;
+
+  const trendStr = s.hrv_trend_30d_vs_prior_30d_pct !== null
+    ? (s.hrv_trend_30d_vs_prior_30d_pct > 0 ? `+${s.hrv_trend_30d_vs_prior_30d_pct}%` : `${s.hrv_trend_30d_vs_prior_30d_pct}%`)
+    : '—';
+
+  const compatBadge = (val) => {
+    if (val === true)      return `<span style="color:var(--good)">✓ compatible</span>`;
+    if (val === 'partial') return `<span style="color:var(--accent)">~ partial</span>`;
+    return `<span style="color:var(--warn)">✗ blocked</span>`;
+  };
+
+  document.getElementById('findingsGrid').innerHTML = `
+    <div class="finding-card">
+      <div class="finding-card-label">HRV rMSSD · mean</div>
+      <div class="finding-card-value">${s.hrv_rmssd_mean ?? '—'} <span style="font-size:12px;color:var(--muted)">ms</span></div>
+      <div class="finding-card-note">
+        P25–P75: ${s.hrv_rmssd_p25 ?? '—'}–${s.hrv_rmssd_p75 ?? '—'} ms &nbsp;·&nbsp; 30d trend: ${trendStr}<br>
+        <span class="flag">Methodology: slow-wave phase rMSSD — not comparable to Garmin overnight avg</span>
+      </div>
+    </div>
+    <div class="finding-card">
+      <div class="finding-card-label">Recovery score · mean</div>
+      <div class="finding-card-value">${s.recovery_score_mean ?? '—'} <span style="font-size:12px;color:var(--muted)">/100</span></div>
+      <div class="finding-card-note">
+        P25–P75: ${s.recovery_score_p25 ?? '—'}–${s.recovery_score_p75 ?? '—'}<br>
+        <span class="flag">Model: Whoop readiness composite — not Garmin Body Battery</span>
+      </div>
+    </div>
+    <div class="finding-card">
+      <div class="finding-card-label">Resting heart rate · mean</div>
+      <div class="finding-card-value">${s.resting_hr_mean ?? '—'} <span style="font-size:12px;color:var(--muted)">bpm</span></div>
+      <div class="finding-card-note">
+        Strain mean: ${s.strain_mean ?? '—'}/21 cardiovascular load<br>
+        <span class="ok">RHR is device-agnostic — cross-device comparable</span>
+      </div>
+    </div>
+    <div class="finding-card">
+      <div class="finding-card-label">Sleep performance · mean</div>
+      <div class="finding-card-value">${s.sleep_performance_pct_mean ?? '—'} <span style="font-size:12px;color:var(--muted)">%</span></div>
+      <div class="finding-card-note">
+        ${env.cycle_count} physiological cycles &nbsp;·&nbsp; ${env.workout_count} workouts<br>
+        <span class="${env.synthesis_ready ? 'ok' : 'flag'}">${env.synthesis_gate}</span>
+      </div>
+    </div>
+    <div class="methodology-block">
+      <div class="methodology-label">Source · Device baseline · Mismatch policy</div>
+      <div class="methodology-text">
+        source: "${env.source}" &nbsp;·&nbsp; signal_source: "${env.signal_source}"<br>
+        baseline_scoped_to_device: ${db.baseline_scoped_to_device} &nbsp;·&nbsp; mismatch_action: ${db.mismatch_action}<br>
+        hrv: ${compatBadge(db.hrv_cross_device_compatible)} &nbsp;·&nbsp;
+        recovery: ${compatBadge(db.recovery_cross_device_compatible)} &nbsp;·&nbsp;
+        rhr: ${compatBadge(db.rhr_cross_device_compatible)} &nbsp;·&nbsp;
+        strain: ${compatBadge(db.strain_cross_device_compatible)} &nbsp;·&nbsp;
+        sleep: ${compatBadge(db.sleep_cross_device_compatible)}<br>
+        <span style="color:var(--accent);font-size:10px">
+          Garmin export presented against this baseline → validateSourceCompatibility() → WARN_AND_BLOCK on mismatch_fields
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+// MAIN INGESTION PIPELINE
+// ═══════════════════════════════════════════════
+
+async function runIngestion(token, workerUrl, pullDays) {
+  accessToken = token;
+  document.getElementById('progressBlock').classList.add('show');
+
+  const now = new Date();
+  const start = new Date(now - pullDays * 86400000);
+  const startISO = start.toISOString();
+  const endISO = now.toISOString();
+
+  // Step: auth
+  setStep('auth', 'done', 'token valid');
+
+  // Step: profile
+  setStep('profile', 'active');
+  let profile;
+  try {
+    const data = await whoopGet(workerUrl, '/user/profile/basic');
+    profile = data;
+    setStep('profile', 'done', `user ${data.user_id}`);
+  } catch (e) {
+    setStep('profile', 'error', 'failed');
+    profile = null;
+  }
+
+  // Step: cycles
+  setStep('cycles', 'active');
+  let cycles = [];
+  try {
+    cycles = await whoopGetAll(workerUrl, '/cycle', { start: startISO, end: endISO });
+    setStep('cycles', 'done', `${cycles.length} cycles`);
+  } catch (e) {
+    setStep('cycles', 'error', 'failed');
+  }
+
+  // Step: recovery
+  setStep('recovery', 'active');
+  let recoveries = [];
+  try {
+    recoveries = await whoopGetAll(workerUrl, '/recovery', { start: startISO, end: endISO });
+    setStep('recovery', 'done', `${recoveries.length} records`);
+  } catch (e) {
+    setStep('recovery', 'error', 'failed');
+  }
+
+  // Step: sleep
+  setStep('sleep', 'active');
+  let sleepRecords = [];
+  try {
+    sleepRecords = await whoopGetAll(workerUrl, '/activity/sleep', { start: startISO, end: endISO });
+    setStep('sleep', 'done', `${sleepRecords.length} sessions`);
+  } catch (e) {
+    setStep('sleep', 'error', 'failed');
+  }
+
+  // Step: workout
+  setStep('workout', 'active');
+  let workouts = [];
+  try {
+    workouts = await whoopGetAll(workerUrl, '/activity/workout', { start: startISO, end: endISO });
+    setStep('workout', 'done', `${workouts.length} sessions`);
+  } catch (e) {
+    setStep('workout', 'error', 'failed');
+  }
+
+  // Step: schema mapping
+  setStep('schema', 'active');
+  let envelope;
+  try {
+    envelope = mapToSchema(profile, cycles, recoveries, sleepRecords, workouts, pullDays);
+    setStep('schema', 'done', `${cycles.length + sleepRecords.length + workouts.length} events mapped`);
+  } catch (e) {
+    setStep('schema', 'error', 'mapping failed');
+    setStatus(`Schema mapping error: ${e.message}`, 'err');
+    return;
+  }
+
+  // Step: synthesis
+  setStep('synthesis', 'active');
+  signalEnvelope = envelope;
+  setStep('synthesis', 'done', `DCS ${Math.round(envelope.signal_confidence * 100)}%`);
+
+  // Render
+  renderFindings(envelope);
+  document.getElementById('envelopeBlock').classList.add('show');
+
+  const jsonStr = JSON.stringify(envelope, null, 2);
+  document.getElementById('envelopeJson').textContent = jsonStr;
+  document.getElementById('jsonBlock').classList.add('show');
+
+  setStatus(
+    envelope.synthesis_ready
+      ? `✓ Signal envelope complete — body domain ready for cross-domain synthesis (DCS ${Math.round(envelope.signal_confidence * 100)}%)`
+      : `⚠ Signal envelope built but confidence below synthesis threshold — ${envelope.synthesis_gate}`,
+    envelope.synthesis_ready ? 'ok' : 'warn'
+  );
+}
+
+// ═══════════════════════════════════════════════
+// COPY
+// ═══════════════════════════════════════════════
+
+function copyEnvelope() {
+  if (!signalEnvelope) return;
+  navigator.clipboard.writeText(JSON.stringify(signalEnvelope, null, 2)).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy JSON'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// OAUTH CALLBACK HANDLER
+// ═══════════════════════════════════════════════
+
+(async function handleCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  const error = params.get('error');
+
+  if (error) {
+    setStatus(`Whoop auth error: ${error} — ${params.get('error_description') || ''}`, 'err');
+    return;
+  }
+
+  if (!code) return; // Not a callback — normal page load
+
+  // Validate state
+  const savedState = sessionStorage.getItem('whoop_state');
+  if (state !== savedState) {
+    setStatus('OAuth state mismatch — possible CSRF. Do not proceed.', 'err');
+    return;
+  }
+
+  // Restore config from session storage
+  const verifier   = sessionStorage.getItem('whoop_verifier');
+  const clientId   = sessionStorage.getItem('whoop_client_id');
+  const workerUrl  = sessionStorage.getItem('whoop_worker');
+  const pullDays   = parseInt(sessionStorage.getItem('whoop_pull_days') || '190');
+
+  if (!verifier || !clientId || !workerUrl) {
+    setStatus('Session state missing — restart OAuth flow', 'err');
+    return;
+  }
+
+  // Restore config display
+  document.getElementById('clientId').value = clientId;
+  document.getElementById('workerUrl').value = workerUrl;
+  document.getElementById('pullDays').value = pullDays;
+
+  // Clean URL
+  window.history.replaceState({}, document.title, window.location.pathname);
+
+  setStatus('OAuth callback received — exchanging token…', 'info');
+
+  try {
+    const token = await exchangeToken(code, verifier, clientId, workerUrl);
+    await runIngestion(token, workerUrl, pullDays);
+  } catch (e) {
+    setStatus(`Token exchange failed: ${e.message}`, 'err');
+  }
+})();
+</script>
+</body>
+</html>
